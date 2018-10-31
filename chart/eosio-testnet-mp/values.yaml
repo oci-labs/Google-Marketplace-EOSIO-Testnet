@@ -1,0 +1,6 @@
+eosio-testnet:
+  image:
+    repository: eosio/eos
+    tag: latest
+  service:
+    port: 80

@@ -1,0 +1,6 @@
+[submodule "vendor/marketplace-tools"]
+	path = vendor/marketplace-tools
+	url = https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools.git
+[submodule "chart/eosio-testnet-mp/charts/eosio-testnet"]
+	path = chart/eosio-testnet-mp/charts/eosio-testnet
+	url = https://github.com/huangminghuang/eosio-testnet.git
