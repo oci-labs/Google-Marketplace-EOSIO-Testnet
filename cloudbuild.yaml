@@ -1,0 +1,81 @@
+steps:
+
+# Initializations
+
+- id: Initialize git
+  name: gcr.io/cloud-builders/git
+  entrypoint: /bin/bash
+  args:
+  - -exc
+  - |
+    # Cloud Build x GitHub integration uses source archives to fetch
+    # the source, rather than Git source fetching, and as a consequence
+    # does not include the .git/ directory. As a workaround, we clone
+    # the repository and reset it to this build's commit sha.
+    git clone 'https://github.com/GoogleCloudPlatform/marketplace-k8s-app-example.git' tmp
+    mv tmp/.git .git
+    rm -rf tmp
+    git reset "$COMMIT_SHA"
+    git submodule sync --recursive
+    git submodule update --init --recursive
+    
+- id: Create Kubernetes Cluster for Testing
+  name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+  - -exc
+  - |
+    cluster_name=testnet-tmp-$${BUILD_ID%-*}
+    gcloud container clusters create $$cluster_name --zone $_ZONE --project $PROJECT_ID
+    echo $$cluster_name > cluster_name
+    mkdir -p /workspace/.kube/
+    cp -r $$HOME/.kube/ /workspace/
+    
+- id: Pull Dev Image
+  name: gcr.io/cloud-builders/docker
+  waitFor:
+  - Initialize git
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    TAG="$$(cat MARKETPLACE_TOOLS_TAG)"
+    { docker pull "gcr.io/cloud-marketplace-tools/k8s/dev:$$TAG" && \
+      docker tag "gcr.io/cloud-marketplace-tools/k8s/dev:$$TAG" "gcr.io/cloud-marketplace-tools/k8s/dev:local"; } || \
+    echo "Pull Dev Image Failed" > build-failed
+
+# EOS testnet Verification
+
+- id: Verify EOSIO Testnet
+  name: gcr.io/cloud-marketplace-tools/k8s/dev:local
+  waitFor:
+  - Create Kubernetes Cluster for Testing
+  - Pull Dev Image
+  env:
+  - 'KUBE_CONFIG=/workspace/.kube'
+  - 'GCLOUD_CONFIG=/workspace/.config/gcloud'
+  - 'EXTRA_DOCKER_PARAMS=--net cloudbuild'
+  # Use local Docker network named cloudbuild as described here:
+  # https://cloud.google.com/cloud-build/docs/overview#build_configuration_and_build_steps
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    [ -f "build-failed" ] || make app/verify || echo "Verify EOSIO Testnet Failed" >> build-failed
+    
+  
+- id: Delete Kubernetes Cluster for Testing
+  name: gcr.io/cloud-builders/gcloud
+  env:
+  - 'GCLOUD_CONFIG=/workspace/.config/gcloud'
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    [ ! -f "cluster_name" ] || gcloud -q container clusters delete $$(cat cluster_name) --zone $_ZONE --project $PROJECT_ID
+    [ -f "build-failed" ] || exit 0
+    cat build-failed
+    exit 1
+    
+substitutions:
+  _ZONE: us-central1-c
