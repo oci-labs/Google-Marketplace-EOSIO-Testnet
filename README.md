@@ -77,13 +77,13 @@ watch the kubernetes resources being created directly from your CLI
 by running:
 
 ```shell
-make watch
+make app/watch
 ```
 
 To delete the installation, run:
 
 ```shell
-make uninstall
+make app/uninstall
 ```
 
 ## Overriding context values (Optional)

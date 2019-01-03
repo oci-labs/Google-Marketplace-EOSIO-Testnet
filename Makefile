@@ -1,12 +1,11 @@
-include vendor/marketplace-tools/app.Makefile
+include app.Makefile
 include vendor/marketplace-tools/crd.Makefile
 include vendor/marketplace-tools/gcloud.Makefile
 include vendor/marketplace-tools/marketplace.Makefile
-include vendor/marketplace-tools/ubbagent.Makefile
 include vendor/marketplace-tools/var.Makefile
 
 
-TAG ?= v1.4.1
+TAG ?= v1.5.2
 $(info ---- TAG = $(TAG))
 
 APP_DEPLOYER_IMAGE ?= $(REGISTRY)/eosio-testnet/deployer:$(TAG)
@@ -15,13 +14,24 @@ NAME ?= eosio-testnet-1
 APP_PARAMETERS ?= { \
   "name": "$(NAME)", \
   "namespace": "$(NAMESPACE)", \
-	"imageEos": "$(REGISTRY)/eosio-testnet/eos:${TAG}" \
+	"imageEos": "$(REGISTRY)/eos:${TAG}" \
 }
-APP_TEST_PARAMETERS ?= {}
+APP_TEST_PARAMETERS ?= { \
+}
+
+# override name_parameter and namespace_parameter so that
+# app/uninstall rule can be executed.
+
+override define name_parameter
+$(shell echo '$(NAME)')
+endef
+
+override define namespace_parameter
+$(shell echo '$(NAMESPACE)')
+endef
 
 
-app/build:: .build/eosio-testnet/deployer \
-            .build/eosio-testnet/eos
+app/build:: .build/eosio-testnet/deployer 
 
 
 .build/eosio-testnet: | .build
@@ -31,6 +41,7 @@ app/build:: .build/eosio-testnet/deployer \
 .build/eosio-testnet/deployer: Dockerfile \
                            chart/eosio-testnet-mp/* \
                            chart/eosio-testnet-mp/charts/eosio-testnet/* \
+                           chart/eosio-testnet-mp/charts/eosio-testnet/templates/* \
                            chart/eosio-testnet-mp/templates/* \
                            schema.yaml \
                            .build/var/APP_DEPLOYER_IMAGE \
@@ -45,29 +56,3 @@ app/build:: .build/eosio-testnet/deployer \
 	    .
 	docker push "$(APP_DEPLOYER_IMAGE)"
 	@touch "$@"
-
-
-.build/eosio-testnet/eos: .build/var/REGISTRY \
-                          .build/var/TAG \
-                          | .build/eosio-testnet
-	docker pull eosio/eos:$(TAG)
-	docker tag eosio/eos:$(TAG) \
-	    "$(REGISTRY)/eosio-testnet/eos:$(TAG)"
-	docker push "$(REGISTRY)/eosio-testnet/eos:$(TAG)"
-	@touch "$@"
-	
-
-.PHONY: install
-install: app/install
-	
-.PHONY: uninstall
-uninstall: .build/var/APP_DEPLOYER_IMAGE \
-           .build/var/APP_PARAMETERS
-	$(call print_target)
-	kubectl delete 'application/$(NAME)' \
-	    --namespace='$(NAMESPACE)' \
-	    --ignore-not-found
-
-.PHONY: watch
-watch:
-	kubectl get all -l "release=$(NAME)" --namespace $(NAMESPACE)

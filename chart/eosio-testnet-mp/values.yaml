@@ -1,6 +1,6 @@
 eosio-testnet:
   image:
-    repository: eosio/eos
-    tag: latest
+    repository: gcr.io/oci-grandeos/eos
+    tag: v1.5.2
   service:
     port: 80
