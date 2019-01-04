@@ -1,13 +1,12 @@
+MARKETPLACE_TOOLS_TAG = $(shell cat MARKETPLACE_TOOLS_TAG)
 include app.Makefile
-include vendor/marketplace-tools/crd.Makefile
-include vendor/marketplace-tools/gcloud.Makefile
-include vendor/marketplace-tools/marketplace.Makefile
-include vendor/marketplace-tools/var.Makefile
+include crd.Makefile
+include var.Makefile
+include gcloud.Makefile
 
 
 TAG ?= v1.5.2
 $(info ---- TAG = $(TAG))
-
 APP_DEPLOYER_IMAGE ?= $(REGISTRY)/eosio-testnet/deployer:$(TAG)
 
 NAME ?= eosio-testnet-1

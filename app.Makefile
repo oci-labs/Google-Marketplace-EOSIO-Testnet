@@ -3,9 +3,8 @@ ifndef __APP_MAKEFILE__
 __APP_MAKEFILE__ := included
 
 
-makefile_dir := vendor/marketplace-tools
-include $(makefile_dir)/common.Makefile
-include $(makefile_dir)/var.Makefile
+include common.Makefile
+include var.Makefile
 
 
 # Combines APP_PARAMETERS and APP_TEST_PARAMETERS.
