@@ -46,6 +46,7 @@ app/build:: .build/eosio-testnet/deployer
                            .build/var/APP_DEPLOYER_IMAGE \
                            .build/var/REGISTRY \
                            .build/var/TAG \
+                           .build/eosio-testnet/eos \
                            | .build/eosio-testnet
 	docker build \
 	    --build-arg REGISTRY="$(REGISTRY)/eos" \
@@ -55,3 +56,16 @@ app/build:: .build/eosio-testnet/deployer
 	    .
 	docker push "$(APP_DEPLOYER_IMAGE)"
 	@touch "$@"
+	
+# Simulate building of primary app image. Actually just copying public image to
+# local registry.
+.build/eosio-testnet/eos: .build/var/REGISTRY \
+                          .build/var/TAG \
+                          | .build/eosio-testnet
+	if [ $(REGISTRY) != "gcr.io/oci-grandeos" ]; then \
+		docker pull huangminghuang/eos:${TAG}; \
+		docker tag huangminghuang/eos:${TAG} "$(REGISTRY)/eos:$(TAG)"; \
+		docker push "$(REGISTRY)/eos:$(TAG)"; \
+	fi;
+	@touch "$@"
+

@@ -12,11 +12,10 @@ steps:
     # the source, rather than Git source fetching, and as a consequence
     # does not include the .git/ directory. As a workaround, we clone
     # the repository and reset it to this build's commit sha.
-    git clone 'https://github.com/GoogleCloudPlatform/marketplace-k8s-app-example.git' tmp
+    git clone 'https://github.com/oci-labs/Google-Marketplace-EOSIO-Testnet.git' tmp
     mv tmp/.git .git
     rm -rf tmp
-    git reset "$COMMIT_SHA"
-    git submodule sync --recursive
+    git reset --hard $COMMIT_SHA
     git submodule update --init --recursive
     
 - id: Create Kubernetes Cluster for Testing
@@ -44,6 +43,21 @@ steps:
     { docker pull "gcr.io/cloud-marketplace-tools/k8s/dev:$$TAG" && \
       docker tag "gcr.io/cloud-marketplace-tools/k8s/dev:$$TAG" "gcr.io/cloud-marketplace-tools/k8s/dev:local"; } || \
     echo "Pull Dev Image Failed" > build-failed
+    
+- id: Build Deployer Image
+  name: gcr.io/cloud-marketplace-tools/k8s/dev:local
+  waitFor:
+  - Pull Dev Image
+  env:
+  - 'GCLOUD_CONFIG=/workspace/.config/gcloud'
+  - 'EXTRA_DOCKER_PARAMS=--net cloudbuild'
+  # Use local Docker network named cloudbuild as described here:
+  # https://cloud.google.com/cloud-build/docs/overview#build_configuration_and_build_steps
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    [ -f "build-failed" ] || make app/build || echo "Build Deployer Image Failed" >> build-failed
 
 # EOS testnet Verification
 
@@ -51,7 +65,7 @@ steps:
   name: gcr.io/cloud-marketplace-tools/k8s/dev:local
   waitFor:
   - Create Kubernetes Cluster for Testing
-  - Pull Dev Image
+  - Build Deployer Image
   env:
   - 'KUBE_CONFIG=/workspace/.kube'
   - 'GCLOUD_CONFIG=/workspace/.config/gcloud'
@@ -62,7 +76,7 @@ steps:
   args:
   - -c
   - |
-    [ -f "build-failed" ] || make app/verify || echo "Verify EOSIO Testnet Failed" >> build-failed
+    [ -f "build-failed" ] || make crd/install && make app/verify || echo "Verify EOSIO Testnet Failed" >> build-failed
     
   
 - id: Delete Kubernetes Cluster for Testing
@@ -80,3 +94,4 @@ steps:
     
 substitutions:
   _ZONE: us-central1-c
+timeout: 1200s
